@@ -17,9 +17,7 @@ public static class KeyReader
         watcher.Created += (object source, FileSystemEventArgs e) => OnChanged(callback, true);
         watcher.Changed += (object source, FileSystemEventArgs e) => OnChanged(callback);
 
-        watcher.NotifyFilter = NotifyFilters.LastAccess |
-                               NotifyFilters.LastWrite |
-                               NotifyFilters.Size;
+        watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size;
         watcher.Filter = ConfigFile;
         watcher.EnableRaisingEvents = true;
 
