@@ -39,10 +39,14 @@ public class KubernetesHelper
         if (secret == null) {
             secret = FillApiKey(CreateEmptySecret(), apiKey);
             _client.CreateNamespacedSecret(secret, Namespace);
+
+            Console.WriteLine($"Created secret {Namespace}:{SecretName} for app {AppName}");
         }
         else if (GetApiKey(secret) != apiKey) {
             secret = FillApiKey(secret, apiKey);
             _client.ReplaceNamespacedSecret(secret, SecretName, Namespace);
+
+            Console.WriteLine($"Updated secret {Namespace}:{SecretName} for app {AppName}");
         }
     }
 

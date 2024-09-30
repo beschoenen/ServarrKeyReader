@@ -12,10 +12,12 @@ public static class KeyReader
 
     public static void WatchConfigFile(Func<string, bool> callback)
     {
+        OnEvent(callback, "Init");
+
         using var watcher = new FileSystemWatcher(ConfigFolder);
 
-        watcher.Created += (object source, FileSystemEventArgs e) => OnChanged(callback, true);
-        watcher.Changed += (object source, FileSystemEventArgs e) => OnChanged(callback);
+        watcher.Created += (object source, FileSystemEventArgs e) => OnEvent(callback, "Created");
+        watcher.Changed += (object source, FileSystemEventArgs e) => OnEvent(callback, "Changed");
 
         watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size;
         watcher.Filter = ConfigFile;
@@ -48,9 +50,9 @@ public static class KeyReader
         return null;
     }
 
-    private static void OnChanged(Func<string, bool> callback, bool created = false)
+    private static void OnEvent(Func<string, bool> callback, string eventType)
     {
-        Console.WriteLine(created ? "Config file created" : "Config file changed");
+        Console.WriteLine($"Config file: {eventType}");
 
         var apiKey = ReadApiKey();
 
