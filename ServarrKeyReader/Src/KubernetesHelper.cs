@@ -72,7 +72,6 @@ public static class KubernetesHelper
     {
         return new V1Secret
         {
-            ApiVersion = $"{V1Secret.KubeGroup}/{V1Secret.KubeApiVersion}",
             Kind = V1Secret.KubeKind,
             Metadata = new V1ObjectMeta
             {
