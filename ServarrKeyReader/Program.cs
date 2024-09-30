@@ -1,5 +1,10 @@
 ﻿using ServarrKeyReader;
 
-var apiKey = KeyReader.ReadApiKey();
+var kubernetesHelper = new KubernetesHelper();
 
-KubernetesHelper.WriteSecret(apiKey);
+KeyReader.WatchConfigFile(apiKey => {
+    kubernetesHelper.WriteSecret(apiKey);
+
+    return true;
+});
+

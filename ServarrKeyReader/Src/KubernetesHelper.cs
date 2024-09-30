@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using k8s;
 using k8s.Autorest;
@@ -6,7 +7,7 @@ using k8s.Models;
 
 namespace ServarrKeyReader;
 
-public static class KubernetesHelper
+public class KubernetesHelper
 {
     private static string Namespace => Environment.GetEnvironmentVariable("KUBERNETES_NAMESPACE") ?? "default";
 
@@ -29,42 +30,50 @@ public static class KubernetesHelper
         }
     }
 
-    private static Kubernetes Client
+    private readonly Kubernetes _client = CreateClient();
+
+    public void WriteSecret(string apiKey)
     {
-        get
-        {
-            KubernetesClientConfiguration? config;
+        var secret = ReadExistingSecret();
 
-            try {
-                config = KubernetesClientConfiguration.BuildConfigFromConfigFile();
-            }
-            catch (KubeConfigException) {
-                config = KubernetesClientConfiguration.InClusterConfig();
-            }
-            catch {
-                throw new KubernetesException("Could not connect to kubernetes cluster");
-            }
-
-            return new Kubernetes(config);
+        if (secret == null) {
+            secret = FillApiKey(CreateEmptySecret(), apiKey);
+            _client.CreateNamespacedSecret(secret, Namespace);
+        }
+        else if (GetApiKey(secret) != apiKey) {
+            secret = FillApiKey(secret, apiKey);
+            _client.ReplaceNamespacedSecret(secret, SecretName, Namespace);
         }
     }
 
-    public static void WriteSecret(string apiKey)
+    private static Kubernetes CreateClient()
     {
-        var secret = ReadExistingSecret() ?? CreateEmptySecret();
+        KubernetesClientConfiguration? config;
 
-        FillApiKey(ref secret, apiKey);
+        try {
+            config = KubernetesClientConfiguration.BuildConfigFromConfigFile();
+        }
+        catch (KubeConfigException) {
+            config = KubernetesClientConfiguration.InClusterConfig();
+        }
+        catch {
+            throw new KubernetesException("Could not connect to kubernetes cluster");
+        }
 
-        Client.CreateNamespacedSecret(secret, Namespace);
+        return new Kubernetes(config);
     }
 
-    private static V1Secret? ReadExistingSecret()
+    private V1Secret? ReadExistingSecret()
     {
         try {
-            return Client.ReadNamespacedSecret(SecretName, Namespace);
+            return _client.ReadNamespacedSecret(SecretName, Namespace);
         }
         catch (HttpOperationException e) {
-            return null;
+            if (e.Response.StatusCode == HttpStatusCode.NotFound) {
+                return null;
+            }
+
+            throw;
         }
     }
 
@@ -72,6 +81,7 @@ public static class KubernetesHelper
     {
         return new V1Secret
         {
+            ApiVersion = $"{V1Secret.KubeGroup}/{V1Secret.KubeApiVersion}",
             Kind = V1Secret.KubeKind,
             Metadata = new V1ObjectMeta
             {
@@ -80,9 +90,18 @@ public static class KubernetesHelper
         };
     }
 
-    private static void FillApiKey(ref V1Secret secret, string apiKey)
+    private static V1Secret FillApiKey(V1Secret secret, string apiKey)
     {
         secret.Data ??= new Dictionary<string, byte[]>();
         secret.Data[AppMode ? "API_KEY" : AppName.ToUpper()] = Encoding.Default.GetBytes(apiKey);
+
+        return secret;
+    }
+
+    private static string? GetApiKey(V1Secret secret)
+    {
+        return secret.Data.TryGetValue(AppMode ? "API_KEY" : AppName.ToUpper(), out var value)
+            ? Encoding.Default.GetString(value)
+            : null;
     }
 }
