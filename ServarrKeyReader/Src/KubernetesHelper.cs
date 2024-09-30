@@ -1,6 +1,7 @@
 using System.Text;
 using k8s;
 using k8s.Autorest;
+using k8s.Exceptions;
 using k8s.Models;
 
 namespace ServarrKeyReader;
@@ -32,8 +33,17 @@ public static class KubernetesHelper
     {
         get
         {
-            var config = KubernetesClientConfiguration.BuildConfigFromConfigFile()
-                         ?? KubernetesClientConfiguration.InClusterConfig();
+            KubernetesClientConfiguration? config;
+
+            try {
+                config = KubernetesClientConfiguration.BuildConfigFromConfigFile();
+            }
+            catch (KubeConfigException) {
+                config = KubernetesClientConfiguration.InClusterConfig();
+            }
+            catch {
+                throw new KubernetesException("Could not connect to kubernetes cluster");
+            }
 
             return new Kubernetes(config);
         }
